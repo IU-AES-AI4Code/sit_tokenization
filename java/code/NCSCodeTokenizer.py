@@ -1,5 +1,5 @@
-from code_tokenizer import CodeTokenizer
-from simple_tokenizer import SimpleTokenizer
+from .code_tokenizer import CodeTokenizer
+from .simple_tokenizer import SimpleTokenizer
 
 class NCSCodeTokenizer:
     def __init__(self):

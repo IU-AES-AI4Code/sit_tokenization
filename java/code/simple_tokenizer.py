@@ -1,62 +1,57 @@
 #!/usr/bin/env python3
-# Author : Saikat Chakraborty (saikatc@cs.columbia.edu)
+# Copyright 2017-present, Facebook, Inc.
+# All rights reserved.
+#
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 """Basic tokenizer that splits text into alpha-numeric tokens and
 non-whitespace tokens.
 """
 
+import regex
 import logging
 from .tokenizer import Tokens, Tokenizer
-import re
 
 logger = logging.getLogger(__name__)
 
 
-def tokenize_with_camel_case(token):
-    matches = re.finditer('.+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|$)', token)
-    return [m.group(0) for m in matches]
+class SimpleTokenizer(Tokenizer):
+    ALPHA_NUM = r'[\p{L}\p{N}\p{M}]+'
+    NON_WS = r'[^\p{Z}\p{C}]'
 
-
-def tokenize_with_snake_case(token):
-    return token.split('_')
-
-
-class CodeTokenizer(Tokenizer):
-    def __init__(self, camel_case=True, snake_case=True, **kwargs):
+    def __init__(self, **kwargs):
         """
         Args:
-            camel_case: Boolean denoting whether CamelCase split is desired
-            snake_case: Boolean denoting whether snake_case split is desired
             annotators: None or empty set (only tokenizes).
         """
-        super(CodeTokenizer, self).__init__()
-        self.snake_case = snake_case
-        self.camel_case = camel_case
-        assert self.snake_case or self.camel_case, \
-            'To call CodeIdentifierTokenizer at least one of camel_case or ' \
-            'snake_case flag has to be turned on in the initializer'
+        self._regexp = regex.compile(
+            '(%s)|(%s)' % (self.ALPHA_NUM, self.NON_WS),
+            flags=regex.IGNORECASE + regex.UNICODE + regex.MULTILINE
+        )
         if len(kwargs.get('annotators', {})) > 0:
             logger.warning('%s only tokenizes! Skipping annotators: %s' %
                            (type(self).__name__, kwargs.get('annotators')))
         self.annotators = set()
 
     def tokenize(self, text):
-        tokens = text.split()
-        snake_case_tokenized = []
-        if self.snake_case:
-            for token in tokens:
-                snake_case_tokenized.extend(tokenize_with_snake_case(token))
-        else:
-            snake_case_tokenized = tokens
-        camel_case_tokenized = []
-        if self.camel_case:
-            for token in snake_case_tokenized:
-                camel_case_tokenized.extend(tokenize_with_camel_case(token))
-        else:
-            camel_case_tokenized = snake_case_tokenized
         data = []
-        for token in camel_case_tokenized:
-            data.append((token, token, token))
+        matches = [m for m in self._regexp.finditer(text)]
+        for i in range(len(matches)):
+            # Get text
+            token = matches[i].group()
 
+            # Get whitespace
+            span = matches[i].span()
+            start_ws = span[0]
+            if i + 1 < len(matches):
+                end_ws = matches[i + 1].span()[0]
+            else:
+                end_ws = span[1]
+
+            # Format data
+            data.append((
+                token,
+                text[start_ws: end_ws],
+                span,
+            ))
         return Tokens(data, self.annotators)
