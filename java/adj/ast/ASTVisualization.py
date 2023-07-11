@@ -1,4 +1,4 @@
-from treelib.treelib import Tree
+from treelib import Tree
 
 def traverse_tree(tree):
     cursor = tree.walk()
